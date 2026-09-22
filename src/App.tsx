@@ -1,6 +1,186 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronDown,Download,FileCode2,Info,Layers3,Plus,Search,ShieldCheck,Sparkles,Upload, X} from 'lucide-react';
-type Dep={id:number;name:string;version:string;license:string;source:string;status:'ok'|'warn'|'risk';note:string};
-const initial:Dep[]=[{id:1,name:'react',version:'18.3.1',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:2,name:'lodash',version:'4.17.21',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:3,name:'chart.js',version:'4.4.4',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:4,name:'highlight.js',version:'11.10.0',license:'BSD-3-Clause',source:'npm',status:'warn',note:'再发布需保留版权声明'}, {id:5,name:'legacy-parser',version:'2.1.0',license:'GPL-3.0',source:'手动',status:'risk',note:'可能与闭源分发冲突'}];
-const colors:Record<string,string>={MIT:'#35b995','BSD-3-Clause':'#6d9ee8','GPL-3.0':'#ec8c75','Apache-2.0':'#b18ee4'};
-export default function App(){const [deps,setDeps]=useState<Dep[]>(()=>{try{return JSON.parse(localStorage.getItem('license-lens')||'')||initial}catch{return initial}});const [query,setQuery]=useState('');const [filter,setFilter]=useState('全部');const [selected,setSelected]=useState(1);const [showAdd,setShowAdd]=useState(false);const [name,setName]=useState('');const [license,setLicense]=useState('MIT');const current=deps.find(d=>d.id===selected);useEffect(()=>localStorage.setItem('license-lens',JSON.stringify(deps)),[deps]);const filtered=useMemo(()=>deps.filter(d=>(filter==='全部'||d.status===filter)&&`${d.name}${d.license}`.toLowerCase().includes(query.toLowerCase())),[deps,filter,query]);const add=()=>{if(!name.trim())return;const id=Date.now();setDeps(ds=>[...ds,{id,name:name.trim(),version:'1.0.0',license,source:'手动',status:license.startsWith('GPL')?'risk':license==='MIT'?'ok':'warn',note:license==='MIT'?'宽松许可，可商用':'请核对分发义务'}]);setSelected(id);setName('');setShowAdd(false)};const exportMd=()=>{const text=`# License Lens\n\n| 依赖 | 版本 | 许可证 | 状态 |\n|---|---|---|---|\n${deps.map(d=>`| ${d.name} | ${d.version} | ${d.license} | ${d.status} |`).join('\n')}`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/markdown'}));a.download='license-report.md';a.click();URL.revokeObjectURL(a.href)};return <div className="shell"><aside><div className="brand"><div className="brand-icon"><ShieldCheck size={18}/></div><div><b>License Lens</b><small>dependency clarity</small></div></div><div className="nav-title">WORKSPACE</div><button className="nav active"><Layers3 size={16}/>依赖总览</button><button className="nav"><FileCode2 size={16}/>许可证清单 <span>{deps.length}</span></button><button className="nav"><AlertTriangle size={16}/>待处理风险 <span className="red">{deps.filter(d=>d.status==='risk').length}</span></button><div className="aside-bottom"><div className="mini-card"><Sparkles size={16}/><div><b>扫描已更新</b><small>刚刚完成 5 个依赖的分析</small></div></div><div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div></div></aside><main><header><div><div className="crumb">WORKSPACE / <b>PROJECT SCAN</b></div><h1>许可证兼容性分析</h1><p>检查依赖许可，放心发布你的项目。</p></div><div className="head-actions"><button className="outline" onClick={exportMd}><Download size={15}/>导出报告</button><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={16}/>添加依赖</button></div></header><section className="hero"><div><span className="tag">PROJECT · AURORA-WEB</span><h2>发布前，再确认一次。</h2><p>我们扫描了 <b>{deps.length} 个依赖</b>，发现 <b className="warning">{deps.filter(d=>d.status!=='ok').length} 个项目</b>需要你的关注。</p></div><div className="scan-score"><div className="score-ring"><strong>{Math.round(deps.filter(d=>d.status==='ok').length/deps.length*100)}<small>%</small></strong></div><div><span>兼容评分</span><b>良好</b><small>上次扫描 2 分钟前</small></div></div></section><section className="summary"><div><span>全部依赖</span><b>{deps.length}</b><small>+2 本次新增</small></div><div><span>安全许可</span><b className="teal">{deps.filter(d=>d.status==='ok').length}</b><small>可直接分发</small></div><div><span>需要复核</span><b className="orange">{deps.filter(d=>d.status==='warn').length}</b><small>保留声明即可</small></div><div><span>高风险</span><b className="red">{deps.filter(d=>d.status==='risk').length}</b><small>建议替换或隔离</small></div></section><section className="workspace"><div className="table-pane"><div className="pane-head"><div><h2>依赖清单</h2><p>逐项查看许可证义务</p></div><div className="tools"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索依赖"/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="全部">全部状态</option><option value="ok">安全</option><option value="warn">复核</option><option value="risk">高风险</option></select></div></div><div className="table"><div className="tr th"><span>依赖名称</span><span>版本</span><span>许可证</span><span>状态</span></div>{filtered.map(d=><button className={d.id===selected?'tr selected':'tr'} key={d.id} onClick={()=>setSelected(d.id)}><span className="dep-name"><span className="pkg-dot"/> {d.name}</span><span className="muted">{d.version}</span><span><i className="license" style={{color:colors[d.license]||'#888',background:(colors[d.license]||'#888')+'18'}}>{d.license}</i></span><span className={'status '+d.status}>{d.status==='ok'?<Check size={13}/>:<AlertTriangle size={13}/>} {d.status==='ok'?'安全':d.status==='warn'?'复核':'高风险'}</span></button>)}</div></div>{current&&<div className="detail"><div className="detail-head"><div className="detail-icon" style={{background:(colors[current.license]||'#888')+'1c',color:colors[current.license]}}><FileCode2 size={20}/></div><div><span>SELECTED DEPENDENCY</span><h2>{current.name}</h2></div><button className="close" onClick={()=>setSelected(0)}><X size={16}/></button></div><div className="detail-grid"><div><label>版本</label><b>{current.version}</b></div><div><label>来源</label><b>{current.source}</b></div><div><label>许可证</label><b>{current.license}</b></div></div><div className={'finding '+current.status}><div className="finding-icon">{current.status==='ok'?<Check size={16}/>:<AlertTriangle size={16}/>}</div><div><b>{current.status==='ok'?'可以放心使用':current.status==='warn'?'需要保留声明':'存在分发限制'}</b><p>{current.note}。扫描结果基于 package 元数据，请在发布前查看完整许可证文本。</p></div></div><div className="full-license"><div><Info size={15}/><span>许可证摘要</span></div><p>{current.license} 允许在满足其条款的前提下使用和分发代码。详细义务请参考项目仓库中的 LICENSE 文件。</p><button>查看原文 <ChevronDown size={14}/></button></div></div>}</section></main>{showAdd&&<div className="backdrop" onClick={()=>setShowAdd(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>添加依赖</h2><button onClick={()=>setShowAdd(false)}>×</button></div><label>依赖名称<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="例如 date-fns"/></label><label>许可证<select value={license} onChange={e=>setLicense(e.target.value)}><option>MIT</option><option>BSD-3-Clause</option><option>Apache-2.0</option><option>GPL-3.0</option></select></label><button className="primary full" onClick={add}>加入扫描</button></div></div>}</div>}
+// ---------- 界面壳：导航、视图切换、动作编排 ----------
+import {useEffect, useMemo, useState} from 'react';
+import {Download, Globe, History, Lock, Package, Plus, Scale, ShieldCheck, Sparkles} from 'lucide-react';
+import type {AppState, ChannelKind, ComponentRecord, NoticePackage} from './types';
+import {mergeComponents, buildNoticeExport} from './engine';
+import {addChannel, addComponent, loadState, removeComponent, saveState, submitBatch, updateComponent} from './store';
+import ConsoleView from './ui/ConsoleView';
+import PackagesView from './ui/PackagesView';
+import BatchesView from './ui/BatchesView';
+import {ChannelModal, ComponentModal, SubmitModal} from './ui/modals';
+import {KindBadge, download} from './ui/bits';
+
+type View = 'console' | 'packages' | 'batches';
+type Modal =
+  | {type: 'addComponent'}
+  | {type: 'editComponent'; id: string}
+  | {type: 'addChannel'}
+  | {type: 'submit'}
+  | null;
+
+export default function App() {
+  const [state, setState] = useState<AppState>(loadState);
+  const [view, setView] = useState<View>('console');
+  const [channelId, setChannelId] = useState(state.channels[0]?.id ?? '');
+  const [modal, setModal] = useState<Modal>(null);
+
+  useEffect(() => saveState(state), [state]);
+
+  const channel = state.channels.find(c => c.id === channelId) ?? state.channels[0];
+  const records = useMemo(() => state.components.filter(c => c.channelId === channel?.id), [state.components, channel?.id]);
+  const entries = useMemo(() => mergeComponents(records), [records]);
+  const channelBatches = useMemo(
+    () => state.batches.filter(b => b.channelId === channel?.id).sort((a, b) => b.seq - a.seq),
+    [state.batches, channel?.id],
+  );
+  const channelPkg = useMemo(
+    () => [...state.packages].reverse().find(p => p.channelId === channel?.id) ?? null,
+    [state.packages, channel?.id],
+  );
+  const allBatchesDesc = useMemo(() => [...state.batches].sort((a, b) => b.seq - a.seq), [state.batches]);
+  const lastBatch = allBatchesDesc[0];
+
+  const exportPkg = (pkg: NoticePackage) => {
+    const ch = state.channels.find(c => c.id === pkg.channelId);
+    download(`NOTICE-${pkg.id}.txt`, buildNoticeExport(pkg, ch?.kind ?? 'closed'));
+  };
+
+  const doSubmit = (reason: string) => {
+    if (!channel) return;
+    const res = submitBatch(state, channel.id, reason, new Date().toISOString());
+    setState(res.state);
+    setModal(null);
+    if (res.pkg) exportPkg(res.pkg); // 通过即冻结并导出
+  };
+
+  const saveComponent = (rec: Omit<ComponentRecord, 'id' | 'channelId'>) => {
+    if (!channel) return;
+    setState(s => modal?.type === 'editComponent'
+      ? updateComponent(s, modal.id, rec)
+      : addComponent(s, {...rec, channelId: channel.id}));
+    setModal(null);
+  };
+
+  const editTarget = modal?.type === 'editComponent'
+    ? state.components.find(c => c.id === modal.id)
+    : undefined;
+
+  const header = {
+    console: {
+      crumb: 'WORKSPACE / 核验台',
+      title: channel?.name ?? '核验台',
+      desc: channel?.kind === 'closed' ? '闭源分发渠道 · GPL 类许可证将触发整批拒绝' : '开源分发渠道 · 标准核验规则',
+    },
+    packages: {crumb: 'WORKSPACE / 通知包', title: '冻结通知包', desc: '核验通过后冻结的通知包，可导出，不可篡改'},
+    batches: {crumb: 'WORKSPACE / 批次记录', title: '批次记录', desc: '每次核验生成不可变批次，旧批次保留可查'},
+  }[view];
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">
+          <div className="brand-icon"><ShieldCheck size={18}/></div>
+          <div><b>License Lens</b><small>notice verification</small></div>
+        </div>
+        <div className="nav-title">工作台</div>
+        <button className={view === 'console' ? 'nav active' : 'nav'} onClick={() => setView('console')}>
+          <Scale size={16}/>核验台
+        </button>
+        <button className={view === 'packages' ? 'nav active' : 'nav'} onClick={() => setView('packages')}>
+          <Package size={16}/>通知包<span>{state.packages.length}</span>
+        </button>
+        <button className={view === 'batches' ? 'nav active' : 'nav'} onClick={() => setView('batches')}>
+          <History size={16}/>批次记录<span>{state.batches.length}</span>
+        </button>
+        <div className="nav-title with-action">
+          分发渠道
+          <button className="mini-add" title="新建渠道" onClick={() => setModal({type: 'addChannel'})}><Plus size={12}/></button>
+        </div>
+        {state.channels.map(c => (
+          <button
+            key={c.id}
+            className={view === 'console' && c.id === channel?.id ? 'nav active' : 'nav'}
+            onClick={() => {setChannelId(c.id); setView('console');}}
+          >
+            {c.kind === 'closed' ? <Lock size={14}/> : <Globe size={14}/>}
+            {c.name}
+            <span>{state.components.filter(x => x.channelId === c.id).length}</span>
+          </button>
+        ))}
+        <div className="aside-bottom">
+          <div className="mini-card">
+            <Sparkles size={16}/>
+            <div>
+              <b>{lastBatch ? `最近批次 ${lastBatch.id} · ${lastBatch.status === 'frozen' ? '已冻结' : '被拒绝'}` : '尚无批次'}</b>
+              <small>{state.packages.length} 个冻结包 · {state.batches.length} 个批次 · {state.components.length} 条登记</small>
+            </div>
+          </div>
+          <div className="user"><div className="avatar">ZL</div><span>Zen Li · 合规</span></div>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <div className="crumb">{header.crumb}</div>
+            <h1>{header.title}{view === 'console' && channel && <> <KindBadge kind={channel.kind}/></>}</h1>
+            <p>{header.desc}</p>
+          </div>
+          <div className="head-actions">
+            {view === 'console' && (
+              <>
+                <button className="outline" disabled={!channelPkg} onClick={() => channelPkg && exportPkg(channelPkg)}>
+                  <Download size={15}/>导出通知包
+                </button>
+                <button className="primary" onClick={() => setModal({type: 'addComponent'})}>
+                  <Plus size={16}/>录入组件
+                </button>
+              </>
+            )}
+          </div>
+        </header>
+
+        {view === 'console' && channel && (
+          <ConsoleView
+            channel={channel}
+            records={records}
+            entries={entries}
+            batches={channelBatches}
+            pkg={channelPkg}
+            onAdd={() => setModal({type: 'addComponent'})}
+            onEdit={id => setModal({type: 'editComponent', id})}
+            onRemove={id => setState(s => removeComponent(s, id))}
+            onSubmit={() => setModal({type: 'submit'})}
+            onExportPkg={exportPkg}
+            onViewPackages={() => setView('packages')}
+          />
+        )}
+        {view === 'packages' && <PackagesView packages={state.packages} channels={state.channels} onExport={exportPkg}/>}
+        {view === 'batches' && <BatchesView batches={allBatchesDesc} packages={state.packages} onExport={exportPkg}/>}
+      </main>
+
+      {modal?.type === 'addComponent' && channel && (
+        <ComponentModal channel={channel} onSave={saveComponent} onClose={() => setModal(null)}/>
+      )}
+      {modal?.type === 'editComponent' && editTarget && channel && (
+        <ComponentModal channel={channel} initial={editTarget} onSave={saveComponent} onClose={() => setModal(null)}/>
+      )}
+      {modal?.type === 'addChannel' && (
+        <ChannelModal
+          onSave={(name: string, kind: ChannelKind) => {setState(s => addChannel(s, name, kind)); setModal(null);}}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'submit' && channel && (
+        <SubmitModal
+          channel={channel}
+          recordCount={records.length}
+          entries={entries}
+          frozenPkg={channelPkg}
+          onConfirm={doSubmit}
+          onClose={() => setModal(null)}
+        />
+      )}
+    </div>
+  );
+}
